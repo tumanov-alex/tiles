@@ -1,8 +1,7 @@
 import React, {useCallback} from 'react';
-import {StyleSheet, Text} from 'react-native';
+import {StyleSheet, Text, ViewStyle} from 'react-native';
 import {GestureDetector, Gesture} from 'react-native-gesture-handler';
 import Animated, {
-  AnimatedStyle,
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
@@ -25,14 +24,19 @@ let absoluteTX;
 let absoluteTY;
 let x;
 let y;
-let isDoingForbiddenMoveHorizontally: boolean;
-let isDoingForbiddenMoveVertically: boolean;
+let isInvalidMoveOnX: boolean;
+let isInvalidMoveOnY: boolean;
 let isMovedLeft;
 let isMovedRight;
 let isMovedUp;
 let isMovedDown;
-let isMovedHorizontally;
+let isMovedOnX;
+let isMovedOnY;
 let isTileBeenMoved;
+let isTileMovedCorrectly;
+let isMovedCorrectlyOnX;
+let isMovedCorrectlyOnY;
+let isMovedCorrectlyOnXY;
 
 interface Props {
   tile: TileType;
@@ -53,20 +57,26 @@ export const Tile = ({
   const offset = useSharedValue({x: 0, y: 0});
   const isHorizontalWithEmptyTile = isAxisX(position, emptyTilePosition);
   const isVerticalWithEmptyTile = isAxisY(position, emptyTilePosition);
-  const canMoveTile =
+  const canMoveTileOnXY =
     !isGameOver && (isHorizontalWithEmptyTile || isVerticalWithEmptyTile);
   const canMoveTileRight = isMovableRight(position, emptyTilePosition);
   const canMoveTileLeft = isMovableLeft(position, emptyTilePosition);
   const canMoveTileUp = isMovableUp(position, emptyTilePosition);
   const canMoveTileDown = isMovableDown(position, emptyTilePosition);
 
-  const animatedStyles = useAnimatedStyle(() => {
-    const style: AnimatedStyle = {
+  type AnimatedStyles = {
+    backgroundColor: string;
+    zIndex: number;
+    transform?: {translateX?: number; translateY?: number}[];
+  } & ViewStyle;
+
+  const animatedStyles = useAnimatedStyle<AnimatedStyles>(() => {
+    const style: AnimatedStyles = {
       backgroundColor: isPressed.value ? 'hotpink' : 'white',
       zIndex: isPressed.value ? 1 : 0,
     };
 
-    if (canMoveTile) {
+    if (canMoveTileOnXY) {
       style.transform = [
         {translateX: offset.value.x},
         {translateY: offset.value.y},
@@ -74,7 +84,7 @@ export const Tile = ({
     }
 
     return style;
-  }, [isPressed.value, offset.value, canMoveTile]);
+  }, [isPressed.value, offset.value, canMoveTileOnXY]);
 
   const onTileMoveSuccess = useCallback(() => {
     // todo: make position an array? In that way onTimeMove can handle the "move two as one" case
@@ -95,13 +105,13 @@ export const Tile = ({
       isMovedUp = y < 0;
       isMovedDown = y > 0;
 
-      isDoingForbiddenMoveHorizontally =
+      isInvalidMoveOnX =
         (!canMoveTileLeft && isMovedLeft) ||
         (!canMoveTileRight && isMovedRight);
-      isDoingForbiddenMoveVertically =
+      isInvalidMoveOnY =
         (!canMoveTileUp && isMovedUp) || (!canMoveTileDown && isMovedDown);
 
-      if (isHorizontalWithEmptyTile && !isDoingForbiddenMoveHorizontally) {
+      if (isHorizontalWithEmptyTile && !isInvalidMoveOnX) {
         offset.value = {
           x:
             Math.abs(e.translationX) > tileSize // if moving further than one tile
@@ -109,7 +119,7 @@ export const Tile = ({
               : x, // else move to an actual value
           y: 0,
         };
-      } else if (isVerticalWithEmptyTile && !isDoingForbiddenMoveVertically) {
+      } else if (isVerticalWithEmptyTile && !isInvalidMoveOnY) {
         offset.value = {
           x: 0,
           y:
@@ -120,30 +130,34 @@ export const Tile = ({
       }
     })
     .onEnd(e => {
-      offset.value = {x: 0, y: 0}; // move tile back to initial place before re-render maybe puts it on a new position
-
       absoluteTX = Math.abs(e.translationX);
       absoluteTY = Math.abs(e.translationY);
+
       isTileBeenMoved =
         absoluteTX > tileMoveThreshold || absoluteTY > tileMoveThreshold;
-      const isTileMovedCorrectly = canMoveTile && isTileBeenMoved;
-      isMovedHorizontally = absoluteTX > absoluteTY;
-      const isMovedVertically = absoluteTX < absoluteTY;
+      isTileMovedCorrectly = canMoveTileOnXY && isTileBeenMoved;
+
+      isMovedOnX = absoluteTX > absoluteTY;
+      isMovedOnY = absoluteTX < absoluteTY;
+
       isMovedLeft = e.translationX < 0;
       isMovedRight = e.translationX > 0;
       isMovedUp = e.translationY < 0;
       isMovedDown = e.translationY > 0;
-      isDoingForbiddenMoveHorizontally =
+
+      isInvalidMoveOnX =
         (!canMoveTileLeft && isMovedLeft) ||
         (!canMoveTileRight && isMovedRight);
-      isDoingForbiddenMoveVertically =
+      isInvalidMoveOnY =
         (!canMoveTileUp && isMovedUp) || (!canMoveTileDown && isMovedDown);
 
-      if (
-        isTileMovedCorrectly &&
-        ((isMovedHorizontally && !isDoingForbiddenMoveHorizontally) ||
-          (isMovedVertically && !isDoingForbiddenMoveVertically))
-      ) {
+      isMovedCorrectlyOnX = isMovedOnX && !isInvalidMoveOnX;
+      isMovedCorrectlyOnY = isMovedOnY && !isInvalidMoveOnY;
+      isMovedCorrectlyOnXY = isMovedCorrectlyOnX || isMovedCorrectlyOnY;
+
+      offset.value = {x: 0, y: 0}; // move tile back to initial place before re-render maybe puts it on a new position
+
+      if (isTileMovedCorrectly && isMovedCorrectlyOnXY) {
         onTileMoveSuccess();
       } else {
         offset.value = {x: 0, y: 0}; // if tile is being put back to the starting position and touch is interrupted before finish, then put it back to the starting point;

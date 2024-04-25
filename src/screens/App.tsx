@@ -9,13 +9,15 @@ import {
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 
 import {Colors} from 'react-native/Libraries/NewAppScreen';
-import {emptyTile, TileType, useTiles} from '../hooks/useTiles';
+import {emptyTile, tilesInOrder, TileType, useTiles} from '../hooks/useTiles';
 import {Tile, tileSize} from '../components/Tile.tsx';
+import {Buttons} from '../components/Buttons.tsx';
 import {Field} from '../components/Field.tsx';
 import {useMoveCount} from '../hooks/useMoveCount.ts';
 import {useIsGameOver} from '../hooks/useIsGameOver.ts';
 import {swap} from '../helpers/swap.ts';
 import {Confetti} from '../components/Confetti.tsx';
+import {shuffleTiles} from '../helpers/shuffleArray.ts';
 
 export type OnTileMove = (position1: number, position2: number) => void;
 
@@ -31,6 +33,7 @@ function App(): React.JSX.Element {
     useMoveCount(tiles);
   const isResetting = useRef(false);
   const isEndGameMessageShownRef = useRef(false);
+
   const onTileMove: OnTileMove = useCallback(
     (position1, position2) => {
       incrementMoveCount();
@@ -39,17 +42,33 @@ function App(): React.JSX.Element {
     [incrementMoveCount, setTiles, tiles],
   );
 
-  const isNotResettingOrShowingResult =
-    !isResetting.current && !isEndGameMessageShownRef.current;
-  const isEndGameState =
-    isGameOver &&
-    moveCount > 0 &&
-    moveCount !== bestMoveCount &&
-    bestMoveCount < Infinity;
-  const isOkToShowEndGameMessage =
-    isNotResettingOrShowingResult && isEndGameState;
+  const onReset = useCallback(() => {
+    isResetting.current = true;
+    const timeout = setTimeout(() => {
+      isResetting.current = false;
+      clearTimeout(timeout); // todo: is this needed?
+    }, 10000); // todo: make it work without setTimeout
+    setTiles(tilesInOrder);
+    resetMoveCount();
+  }, [resetMoveCount, setTiles]);
+
+  const onShuffle = useCallback(() => {
+    setIsGameOver(false);
+    setTiles(shuffleTiles(tilesInOrder));
+    resetMoveCount();
+  }, [resetMoveCount, setIsGameOver, setTiles]);
 
   useEffect(() => {
+    const isNotResettingOrShowingResult =
+      !isResetting.current && !isEndGameMessageShownRef.current;
+    const isEndGameState =
+      isGameOver &&
+      moveCount > 0 &&
+      moveCount !== bestMoveCount &&
+      bestMoveCount < Infinity;
+    const isOkToShowEndGameMessage =
+      isNotResettingOrShowingResult && isEndGameState;
+
     if (isOkToShowEndGameMessage) {
       Alert.alert(
         `Your score is ${moveCount.toString()}`,
@@ -62,18 +81,14 @@ function App(): React.JSX.Element {
         clearTimeout(timeout);
       }, 5000);
     }
-  }, [
-    isGameOver,
-    moveCount,
-    bestMoveCount,
-    setIsGameOver,
-    isOkToShowEndGameMessage,
-  ]);
+  }, [isGameOver, moveCount, bestMoveCount, setIsGameOver]);
 
   return (
     <GestureHandlerRootView>
       <SafeAreaView style={[backgroundStyle, styles.container]}>
         {isGameOver && <Confetti />}
+
+        <Buttons onReset={onReset} onShuffle={onShuffle} />
         <Field>
           {tiles.map((tile: TileType, i: number) =>
             tile ? (
