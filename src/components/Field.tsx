@@ -15,5 +15,6 @@ const styles = StyleSheet.create({
     height: tileSize * 3,
     flexDirection: 'row',
     flexWrap: 'wrap',
+    marginTop: 70,
   },
 });

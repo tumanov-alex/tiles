@@ -99,3 +99,39 @@ export const isMovableRight = (
 
   return !isOnRightRow && isRightTileEmpty;
 };
+
+export const getAdjacentSides = (
+  tilePosition: number,
+  emptyTilePosition: number,
+) => {
+  const res = [];
+
+  // Check if the tile is above the empty tile
+  if (tilePosition - gameFieldSize === emptyTilePosition) {
+    res.push('Top');
+  }
+
+  // Check if the tile is below the empty tile
+  if (tilePosition + gameFieldSize === emptyTilePosition) {
+    res.push('Bottom');
+  }
+
+  // Check if the tile is to the left of the empty tile
+  if (
+    tilePosition - 1 === emptyTilePosition &&
+    tilePosition % gameFieldSize !== 0
+  ) {
+    res.push('Left');
+  }
+
+  // Check if the tile is to the right of the empty tile
+  if (
+    tilePosition + 1 === emptyTilePosition &&
+    (tilePosition + 1) % gameFieldSize !== 0
+  ) {
+    res.push('Right');
+  }
+
+  // If none of the above conditions are met, the tile is not adjacent to the empty tile
+  return res;
+};

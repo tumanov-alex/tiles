@@ -16,6 +16,8 @@ import {
   isMovableUp,
 } from '../helpers/matrixShared.ts';
 import {OnTileMove} from '../screens/App.tsx';
+import {getTileBorderStyle} from '../helpers/getTileBorderStyle.ts';
+import {useColors} from '../hooks/useColors.ts';
 
 export const tileSize = 100;
 const tileMoveThreshold = tileSize / 2;
@@ -46,6 +48,12 @@ interface Props {
   isGameOver: boolean;
 }
 
+type AnimatedStyles = {
+  backgroundColor: string;
+  zIndex: number;
+  transform?: {translateX?: number; translateY?: number}[];
+} & ViewStyle;
+
 export const Tile = ({
   tile,
   onTileMove,
@@ -53,22 +61,19 @@ export const Tile = ({
   emptyTilePosition,
   isGameOver,
 }: Props) => {
+  const colors = useColors();
   const isPressed = useSharedValue(false);
   const offset = useSharedValue({x: 0, y: 0});
+
   const isHorizontalWithEmptyTile = isAxisX(position, emptyTilePosition);
   const isVerticalWithEmptyTile = isAxisY(position, emptyTilePosition);
   const canMoveTileOnXY =
     !isGameOver && (isHorizontalWithEmptyTile || isVerticalWithEmptyTile);
+
   const canMoveTileRight = isMovableRight(position, emptyTilePosition);
   const canMoveTileLeft = isMovableLeft(position, emptyTilePosition);
   const canMoveTileUp = isMovableUp(position, emptyTilePosition);
   const canMoveTileDown = isMovableDown(position, emptyTilePosition);
-
-  type AnimatedStyles = {
-    backgroundColor: string;
-    zIndex: number;
-    transform?: {translateX?: number; translateY?: number}[];
-  } & ViewStyle;
 
   const animatedStyles = useAnimatedStyle<AnimatedStyles>(() => {
     const style: AnimatedStyles = {
@@ -169,7 +174,12 @@ export const Tile = ({
 
   return (
     <GestureDetector gesture={gesture}>
-      <Animated.View style={[styles.container, animatedStyles]}>
+      <Animated.View
+        style={[
+          styles.container,
+          getTileBorderStyle(position, emptyTilePosition, colors.secondary),
+          animatedStyles,
+        ]}>
         <Text>{tile}</Text>
       </Animated.View>
     </GestureDetector>
